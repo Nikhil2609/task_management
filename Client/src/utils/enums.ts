@@ -1,5 +1,5 @@
 export const API_URL = {
-  BASE_URL: import.meta.env.VITE_BASE_URL,
+  BASE_URL: process.env.REACT_APP_BASE_URL,
 };
 
 export enum PUBLIC_ROUTE {
