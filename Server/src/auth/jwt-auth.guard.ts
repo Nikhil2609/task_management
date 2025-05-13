@@ -7,7 +7,7 @@ export class JwtAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    
+    console.log("Rutvik001", request.session);
     // Check for session
     if (!request.session?.jwt) {
       throw new UnauthorizedException('No session found');

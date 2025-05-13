@@ -1,34 +1,37 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
   TextField,
   Typography,
   CircularProgress,
+  InputAdornment,
 } from "@mui/material";
-// import { GoogleLogin } from '@react-oauth/google';
 import { Link, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Formik, Form, Field, FormikHelpers } from "formik";
 import * as Yup from "yup";
 import AuthFormWrapper from "../../components/AuthFormWrapper";
 import { registerUser } from "../../redux/slices/authSlice";
-import { AppDispatch } from "../../redux/store";
-import { PUBLIC_ROUTE } from "../../utils/enums";
+import { AppDispatch, RootState } from "../../redux/store";
+import { PRIVATE_ROUTE, PUBLIC_ROUTE } from "../../utils/enums";
+import GoogleAuth from "./GoogleAuth";
 
 // Validation schema
 const validationSchema = Yup.object({
-  firstName: Yup.string()
-    .required("First name is required")
-    .min(2, "First name must be at least 2 characters"),
-  lastName: Yup.string()
-    .required("Last name is required")
-    .min(2, "Last name must be at least 2 characters"),
+  firstName: Yup.string().required("First name is required"),
+  lastName: Yup.string().required("Last name is required"),
   email: Yup.string()
     .email("Invalid email address")
     .required("Email is required"),
   password: Yup.string()
     .min(8, "Password must be at least 8 characters")
+    .matches(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .matches(/[0-9]/, "Password must contain at least one number")
+    .matches(
+      /[!@#$%^&*(),.?":{}|<>]/,
+      "Password must contain at least one special character"
+    )
     .required("Password is required"),
   confirmPassword: Yup.string()
     .oneOf([Yup.ref("password")], "Passwords must match")
@@ -54,6 +57,13 @@ const initialValues: SignupFormValues = {
 const Signup: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+  const handleClickShowConfirmPassword = () =>
+    setShowConfirmPassword((show) => !show);
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   const handleSubmit = async (
     values: SignupFormValues,
@@ -67,7 +77,8 @@ const Signup: React.FC = () => {
           email: values.email,
           password: values.password,
         })
-      );
+      ).unwrap();
+
       navigate(PUBLIC_ROUTE.LOGIN);
     } catch (error) {
       console.error("Signup error:", error);
@@ -75,6 +86,13 @@ const Signup: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+      // Redirect if authenticated
+      if (isAuthenticated) {
+        navigate(PRIVATE_ROUTE.BOARD);
+      }
+    }, [isAuthenticated, navigate]);
 
   return (
     <AuthFormWrapper title="Signup">
@@ -118,20 +136,44 @@ const Signup: React.FC = () => {
               fullWidth
               label="Password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               margin="normal"
               error={touched.password && Boolean(errors.password)}
               helperText={touched.password && errors.password}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Typography
+                      className="show-password-button"
+                      onClick={handleClickShowPassword}
+                    >
+                      {showPassword ? "HIDE" : "SHOW"}
+                    </Typography>
+                  </InputAdornment>
+                ),
+              }}
             />
             <Field
               as={TextField}
               fullWidth
               label="Confirm Password"
               name="confirmPassword"
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               margin="normal"
               error={touched.confirmPassword && Boolean(errors.confirmPassword)}
               helperText={touched.confirmPassword && errors.confirmPassword}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Typography
+                      className="show-password-button"
+                      onClick={handleClickShowConfirmPassword}
+                    >
+                      {showConfirmPassword ? "HIDE" : "SHOW"}
+                    </Typography>
+                  </InputAdornment>
+                ),
+              }}
             />
             <Button
               type="submit"
@@ -160,8 +202,7 @@ const Signup: React.FC = () => {
         </Typography>
       </Box>
 
-      <Button variant="contained">Signup with Google</Button>
-      {/* <GoogleLogin onSuccess={...} onError={...} /> */}
+      <GoogleAuth buttonText="Signup with Google" />
     </AuthFormWrapper>
   );
 };

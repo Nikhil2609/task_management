@@ -1,5 +1,5 @@
 export const configuration = () => ({
-  port: parseInt(process.env.PORT || '3000', 10),
+  port: parseInt(process.env.PORT || '5000', 10),
   jwt: {
     secret: process.env.JWT_SECRET || 'your-secret-key',
     expiresIn: '24h',

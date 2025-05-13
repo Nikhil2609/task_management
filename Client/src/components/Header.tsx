@@ -48,7 +48,9 @@ const Header = () => {
             <Button
               variant="contained"
               color="error"
-              onClick={() => dispatch(logoutUser())}
+              onClick={() => {
+                dispatch(logoutUser());
+              }}
             >
               Logout
             </Button>

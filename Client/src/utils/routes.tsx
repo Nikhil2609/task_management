@@ -9,6 +9,7 @@ import { RootState } from "../redux/store";
 const Login = React.lazy(() => import("../features/auth/Login"));
 const Signup = React.lazy(() => import("../features/auth/Signup"));
 const Board = React.lazy(() => import("../features/board/Board"));
+const NotFound = React.lazy(() => import("../components/NotFound"));
 
 interface RouteProps {
   element: React.ReactNode;
@@ -42,6 +43,10 @@ const AuthRoute: React.FC<RouteProps> = ({ element }) => {
 const router = createBrowserRouter([
   {
     path: PUBLIC_ROUTE.HOME,
+    element: <Navigate to={PUBLIC_ROUTE.LOGIN} replace />,
+  },
+  {
+    path: PUBLIC_ROUTE.HOME,
     element: <Layout />,
     children: [
       {
@@ -57,6 +62,10 @@ const router = createBrowserRouter([
         element: <PrivateRoute element={<Board />} />,
       },
     ],
+  },
+  {
+    path: "*",
+    element: <NotFound />,
   },
 ]);
 

@@ -20,6 +20,10 @@ export class Task extends Document {
 
   @Prop({ required: true })
   userId: string;
+  
+  // Mongoose automatically adds these with timestamps: true
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task); 

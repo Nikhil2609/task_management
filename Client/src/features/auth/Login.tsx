@@ -1,11 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Button,
   TextField,
   Typography,
   CircularProgress,
+  InputAdornment,
 } from "@mui/material";
-// import { GoogleLogin } from '@react-oauth/google';
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Formik, Form, Field, FormikHelpers } from "formik";
@@ -14,6 +14,7 @@ import AuthFormWrapper from "../../components/AuthFormWrapper";
 import { loginUser } from "../../redux/slices/authSlice";
 import { AppDispatch, RootState } from "../../redux/store";
 import { PRIVATE_ROUTE } from "../../utils/enums";
+import GoogleAuth from "./GoogleAuth";
 
 // Validation schema
 const validationSchema = Yup.object({
@@ -40,6 +41,10 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
   const handleSubmit = async (
     values: LoginFormValues,
     { setSubmitting }: FormikHelpers<LoginFormValues>
@@ -65,7 +70,6 @@ const Login: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
-
   return (
     <AuthFormWrapper title="Login">
       <Formik
@@ -90,10 +94,22 @@ const Login: React.FC = () => {
               fullWidth
               label="Password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               margin="normal"
               error={touched.password && Boolean(errors.password)}
               helperText={touched.password && errors.password}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Typography
+                      className="show-password-button"
+                      onClick={handleClickShowPassword}
+                    >
+                      {showPassword ? "HIDE" : "SHOW"}
+                    </Typography>
+                  </InputAdornment>
+                ),
+              }}
             />
             <Button
               type="submit"
@@ -114,18 +130,12 @@ const Login: React.FC = () => {
 
       <Typography variant="body2" color="text.secondary">
         Don't have an account?{" "}
-        <Link
-          to="/signup"
-          style={{
-            color: "#1976d2",
-            textDecoration: "none",
-            fontWeight: 500,
-          }}
-        >
+        <Link className="link" to="/signup">
           Signup
         </Link>
       </Typography>
-      <Button variant="contained">Login with Google</Button>
+
+      <GoogleAuth buttonText="Login with Google" />
     </AuthFormWrapper>
   );
 };

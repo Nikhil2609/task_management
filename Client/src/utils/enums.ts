@@ -1,7 +1,3 @@
-export const API_URL = {
-  BASE_URL: process.env.REACT_APP_BASE_URL,
-};
-
 export enum PUBLIC_ROUTE {
   HOME = "/",
   LOGIN = "/login",
@@ -11,3 +7,15 @@ export enum PUBLIC_ROUTE {
 export enum PRIVATE_ROUTE {
   BOARD = "/board",
 }
+
+export enum MODAL_MODE {
+  CREATE = "create",
+  EDIT = "edit",
+  VIEW = "view",
+}
+
+export const STATUS_LISTS = [
+  { id: "CREATED", name: "TODO" },
+  { id: "INPROGRESS", name: "IN PROGRESS" },
+  { id: "COMPLETED", name: "DONE" },
+];

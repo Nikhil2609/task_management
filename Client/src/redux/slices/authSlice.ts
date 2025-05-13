@@ -103,15 +103,27 @@ export const firebaseSocialLogin = createAsyncThunk(
   }
 );
 
+export const googleAuth = createAsyncThunk(
+  "auth/google",
+  async ({ accessToken }: { accessToken: string }, { rejectWithValue }) => {
+    try {
+      const response = await authService.googleLogin(accessToken);
+      return response;
+    } catch (err) {
+      console.error("Google Auth Error", err);
+      return rejectWithValue(err);
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: "user",
   initialState,
   reducers: {
     clearAuthState: (state) => {
+      state.loading = false;
       state.success = null;
       state.error = null;
-      state.isAuthenticated = false;
-      state.loading = false;
     },
   },
   extraReducers: (builder) => {
@@ -184,6 +196,31 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.success = null;
         state.error = (action.payload as string) || "Error while registration.";
+      })
+
+      // Google Login
+      .addCase(googleAuth.pending, (state) => {
+        state.token = null;
+        state.loading = true;
+        state.error = null;
+        state.success = null;
+      })
+      .addCase(googleAuth.fulfilled, (state, action) => {
+        const { data, message, status } = action.payload;
+        if (status === 200) {
+          state.token = data.token;
+          state.isAuthenticated = true;
+          state.loading = false;
+          state.error = null;
+          state.success = message;
+        }
+      })
+      .addCase(googleAuth.rejected, (state, action) => {
+        state.token = null;
+        state.loading = false;
+        state.isAuthenticated = false;
+        state.success = null;
+        state.error = (action.payload as string) || "Error while login.";
       })
 
       // Log out

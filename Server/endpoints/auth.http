@@ -5,6 +5,7 @@
 POST {{baseUrl}}/{{urlPath}}/signup
 Content-Type: application/json
 Accept: application/json
+withCredentials: true
 
 {
   "email": "jane.doe@example.com",
@@ -17,11 +18,12 @@ Accept: application/json
 POST {{baseUrl}}/{{urlPath}}/signup
 Content-Type: application/json
 Accept: application/json
+withCredentials: true
 
 {
   "firstname": "Jane",
   "lastname": "Doe",
-  "email": "jane.doe@example.com",
+  "email": "jane.doe1@example.com",
   "googleId": "google-unique-id"
 }
 
@@ -29,6 +31,7 @@ Accept: application/json
 POST {{baseUrl}}/{{urlPath}}/login
 Content-Type: application/json
 Accept: application/json
+withCredentials: true
 
 {
   "email": "jane.doe@example.com",

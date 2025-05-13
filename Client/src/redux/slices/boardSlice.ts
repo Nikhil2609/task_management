@@ -2,25 +2,16 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { boardService } from "../../services/boardService";
 
 export interface ITask {
+  userId: string;
   _id: string;
   title: string;
   description: string;
   status?: string;
-  position?: number;
-  created_by: string;
-  assigned_to: string;
-  board_id: string;
-  status_list_id: string;
-  due_date: string;
-}
-
-export interface IStatusList {
-  _id: string;
-  name: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface BoardState {
-  statusList: IStatusList[];
   tasks: ITask[];
   selectedTask: ITask | null;
   loading: boolean;
@@ -29,7 +20,6 @@ interface BoardState {
 }
 
 const initialState: BoardState = {
-  statusList: [],
   tasks: [],
   selectedTask: null,
   loading: false,
@@ -38,10 +28,13 @@ const initialState: BoardState = {
 };
 
 export const getTasks = createAsyncThunk(
-  "task/get-tasks-by-status",
-  async (_, { rejectWithValue }) => {
+  "board/get-tasks",
+  async (
+    { search, sort }: { search: string; sort: string },
+    { rejectWithValue }
+  ) => {
     try {
-      const response = await boardService.getTasks();
+      const response = await boardService.getTasks(search, sort);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
@@ -52,7 +45,7 @@ export const getTasks = createAsyncThunk(
 );
 
 export const createTask = createAsyncThunk(
-  "task/create",
+  "board/create-task",
   async (
     {
       title,
@@ -75,11 +68,11 @@ export const createTask = createAsyncThunk(
 );
 
 export const updateTask = createAsyncThunk(
-  "task/update",
+  "board/update-task",
   async (data: Partial<ITask>, { rejectWithValue }) => {
     try {
       const response = await boardService.updateTask(data);
-      return response.data;
+      return response;
     } catch (error: any) {
       return rejectWithValue(
         error.response?.data?.message ?? "Error while updating task."
@@ -88,8 +81,25 @@ export const updateTask = createAsyncThunk(
   }
 );
 
+export const updateStatus = createAsyncThunk(
+  "board/update-status",
+  async (
+    { taskId, status }: { taskId: string; status: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await boardService.updateStatus(taskId, status);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message ?? "Error while updating task status."
+      );
+    }
+  }
+);
+
 export const deleteTask = createAsyncThunk(
-  "task/delete",
+  "board/delete-task",
   async (taskId: string, { rejectWithValue }) => {
     try {
       const response = await boardService.deleteTask(taskId);
@@ -97,20 +107,6 @@ export const deleteTask = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(
         error.response?.data?.message ?? "Error while deleting task."
-      );
-    }
-  }
-);
-
-export const getTaskById = createAsyncThunk(
-  "task/get-by-id",
-  async (taskId: string, { rejectWithValue }) => {
-    try {
-      const response = await boardService.getTaskById(taskId);
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message ?? "Error while fetching task."
       );
     }
   }
@@ -124,25 +120,26 @@ const boardSlice = createSlice({
       state.selectedTask = action.payload;
     },
     clearBoardState: (state) => {
-      state.tasks = [];
       state.loading = false;
       state.error = null;
       state.success = null;
     },
+    updateTasks: (state, action) => {
+      state.tasks = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Get tasks by status
+      // Get all tasks
       .addCase(getTasks.pending, (state) => {
         state.loading = true;
         state.error = null;
         state.success = null;
       })
       .addCase(getTasks.fulfilled, (state, action) => {
-        state.tasks = action.payload.data;
+        state.tasks = action.payload;
         state.loading = false;
         state.error = null;
-        state.success = "Tasks fetched successfully.";
       })
       .addCase(getTasks.rejected, (state, action) => {
         state.loading = false;
@@ -177,9 +174,13 @@ const boardSlice = createSlice({
         state.success = null;
       })
       .addCase(updateTask.fulfilled, (state, action) => {
+        const selectedTask = action.payload.data;
+        state.selectedTask = selectedTask;
+        state.tasks = state.tasks.map((task) =>
+          task._id === selectedTask._id ? selectedTask : task
+        );
         state.loading = false;
         state.error = null;
-        state.selectedTask = action.payload;
         state.success = "Task updated successfully.";
       })
       .addCase(updateTask.rejected, (state, action) => {
@@ -187,6 +188,28 @@ const boardSlice = createSlice({
         state.success = null;
         state.error =
           (action.payload as string) || "Error while updating task.";
+      })
+
+      // Update task status
+      .addCase(updateStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = null;
+      })
+      .addCase(updateStatus.fulfilled, (state, action) => {
+        const selectedTask = action.payload.data;
+        state.tasks = state.tasks.map((task) =>
+          task._id === selectedTask._id ? selectedTask : task
+        );
+        state.loading = false;
+        state.error = null;
+        state.success = "Task status updated successfully.";
+      })
+      .addCase(updateStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.success = null;
+        state.error =
+          (action.payload as string) || "Error while updating task status.";
       })
 
       // Delete task
@@ -206,29 +229,11 @@ const boardSlice = createSlice({
         state.success = null;
         state.error =
           (action.payload as string) || "Error while deleting task.";
-      })
-
-      // Get task by ID
-      .addCase(getTaskById.pending, (state) => {
-        state.error = null;
-        state.success = null;
-      })
-      .addCase(getTaskById.fulfilled, (state, action) => {
-        state.selectedTask = action.payload;
-        state.loading = false;
-        state.error = null;
-        state.success = "Task fetched successfully.";
-      })
-      .addCase(getTaskById.rejected, (state, action) => {
-        state.loading = false;
-        state.selectedTask = null;
-        state.success = null;
-        state.error =
-          (action.payload as string) || "Error while fetching task.";
       });
   },
 });
 
-export const { setSelectedTask, clearBoardState } = boardSlice.actions;
+export const { setSelectedTask, clearBoardState, updateTasks } =
+  boardSlice.actions;
 
 export default boardSlice.reducer;

@@ -7,6 +7,7 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 Accept: application/json
 withCredentials: true
+
 {
   "email": "jane.doe@example.com",
   "password": "Test@123"
@@ -16,6 +17,7 @@ withCredentials: true
 POST {{baseUrl}}/{{urlPath}}
 Content-Type: application/json
 Accept: application/json
+withCredentials: true
 
 {
   "title": "Your task title",

@@ -1,18 +1,26 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException, InternalServerErrorException, Req, Res } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../user/user.schema';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      redirectUri: 'http://localhost:5000/auth/google/callback',
+    });
+  }
 
   private signJWT(payload: any): string {
     return this.jwtService.sign(payload);
@@ -62,42 +70,111 @@ export class AuthService {
       return { status: 200, message: 'Login successful', data: { id: user._id, token: token } };
     }
   }
-
-  async googleAuth(req: Request) {
-    if (!req.user) {
-      throw new UnauthorizedException('No user from google');
-    }
-
-    const { googleId, email, firstname, lastname } = req.user as any;
-    
-    // Check if user exists by email
-    let user = await this.userService.findByEmail(email);
-    
-    if (!user) {
-      // Create new user
-      user = await this.userService.create({
-        firstname,
-        lastname,
-        email,
-        googleId,
+  
+  async handleGoogleAuth(body: any, req: Request) {
+    try {
+      const { accessToken } = body;
+      console.log('Received access token:', accessToken);
+  
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
-    } else if (!user.googleId) {
-      // Update existing user with Google ID
-      user.googleId = googleId;
-      await user.save();
+  
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Google API response error:', text);
+        throw new UnauthorizedException('Invalid Google access token');
+      }
+  
+      const profile = await response.json();
+      console.log('Google profile:', profile);
+  
+      if (!profile.email_verified) {
+        throw new UnauthorizedException('Google email not verified');
+      }
+  
+      let user = await this.userService.findByEmail(profile.email);
+      console.log('User from DB:', user);
+  
+      if (!user) {
+        user = await this.userService.create({
+          firstname: profile.given_name,
+          lastname: profile.family_name,
+          email: profile.email,
+          googleId: profile.sub,
+        });
+        console.log('User created:', user);
+      }
+  
+      const token = this.signJWT({ id: user._id });
+      req.session = { jwt: token };
+      console.log('JWT created and session set');
+  
+      return {
+        status: 200,
+        message: user ? 'Google login successful' : 'Google signup successful',
+        data: { id: user._id, token },
+      };
+    } catch (error) {
+      console.error('Error in handleGoogleAuth:', error);
+      throw new InternalServerErrorException('Google login failed');
     }
-
-    // Generate JWT
-    const token = this.jwtService.sign({ id: user._id });
-    req.session = { jwt: token };
-
-    return {
-      status: 200,
-      message: 'Google authentication successful',
-      data: { id: user._id }
-    };
   }
 
+  async handleGoogleLogin(body: any, req: Request) {
+    try {
+      const { accessToken } = body;
+      console.log('Received access token:', accessToken);
+  
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+  
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Google API response error:', text);
+        throw new UnauthorizedException('Invalid Google access token');
+      }
+  
+      const profile = await response.json();
+      console.log('Google profile:', profile);
+  
+      if (!profile.email_verified) {
+        throw new UnauthorizedException('Google email not verified');
+      }
+  
+      let user = await this.userService.findByEmail(profile.email);
+      console.log('User from DB:', user);
+  
+      if (!user) {
+        user = await this.userService.create({
+          firstname: profile.given_name,
+          lastname: profile.family_name,
+          email: profile.email,
+          googleId: profile.sub,
+        });
+        console.log('User created:', user);
+      }
+  
+      const token = this.signJWT({ id: user._id });
+      req.session = { jwt: token };
+      console.log('JWT created and session set');
+  
+      return {
+        status: 200,
+        message: user ? 'Google login successful' : 'Google signup successful',
+        data: { id: user._id, token },
+      };
+    } catch (error) {
+      console.error('Error in handleGoogleAuth:', error);
+      throw new InternalServerErrorException('Google login failed');
+    }
+  }
+  
   async logout(req: Request) {
     req.session = null;
     return { status: 200, message: 'Logged out successfully' };

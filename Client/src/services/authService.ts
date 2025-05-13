@@ -1,5 +1,4 @@
 import axiosInstance from "../utils/axiosInstance";
-import { API_URL } from "../utils/enums";
 
 export const authService = {
   async signup(
@@ -8,20 +7,17 @@ export const authService = {
     email: string,
     password: string
   ) {
-    const response = await axiosInstance.post(
-      `${API_URL.BASE_URL}/auth/signup`,
-      {
-        firstname: first_name,
-        lastname: last_name,
-        email: email,
-        password: password,
-      }
-    );
+    const response = await axiosInstance.post(`/auth/signup`, {
+      firstname: first_name,
+      lastname: last_name,
+      email: email,
+      password: password,
+    });
     return response.data;
   },
 
   async login(email: string, password: string) {
-    const response = await axiosInstance.post(`${API_URL.BASE_URL}/auth/login`, {
+    const response = await axiosInstance.post(`/auth/login`, {
       email,
       password,
     });
@@ -29,18 +25,24 @@ export const authService = {
   },
 
   async logout() {
-    const response = await axiosInstance.get(`${API_URL.BASE_URL}/auth/logout`);
+    const response = await axiosInstance.get(`/auth/logout`);
     return response.data;
   },
 
   async firebaseLogin(idToken: string, screenName: string) {
-    const response = await axiosInstance.post(
-      `${API_URL.BASE_URL}/auth/social-firebase-login`,
-      {
-        idToken,
-        screenName
-      }
-    );
+    const response = await axiosInstance.post(`/auth/social-firebase-login`, {
+      idToken,
+      screenName,
+    });
     return response.data;
   },
+
+  async googleLogin(accessToken: string) {
+    const response = await axiosInstance.post(
+      `/auth/google-login`,
+      { accessToken }
+    );
+    return response.data;
+  }
+  
 };
