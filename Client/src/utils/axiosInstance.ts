@@ -3,7 +3,7 @@ import axios, { AxiosError, AxiosResponse } from "axios";
 // import { logout } from '../store/slices/userSlice';
 
 const axiosInstance = axios.create({
-  baseURL: process.env.REACT_APP_API_URL,
+  baseURL: "https://task-management-api-5koo.onrender.com",
   headers: {
     "Content-Type": "application/json",
   },
