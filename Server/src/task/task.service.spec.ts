@@ -152,8 +152,8 @@ describe('TaskService', () => {
     });
   });
 
-  describe('getAllTasks', () => {
-    it('should return all tasks for a user', async () => {
+  describe('getTasks', () => {
+    it('should return all tasks for a user when no search is provided', async () => {
       // Arrange
       const userId = 'user_id';
       const tasks = [
@@ -161,20 +161,72 @@ describe('TaskService', () => {
         { ...mockTask, _id: 'task2' },
       ];
 
-      const sortMock = {
-        exec: jest.fn().mockResolvedValue(tasks),
-      };
+      const execMock = jest.fn().mockResolvedValue(tasks);
+      const sortMock = { exec: execMock };
       
       mockTaskModel.find.mockReturnValue({
         sort: jest.fn().mockReturnValue(sortMock),
       });
 
       // Act
-      const result = await service.getAllTasks(userId);
+      const result = await service.getTasks(userId);
 
       // Assert
       expect(mockTaskModel.find).toHaveBeenCalledWith({ userId });
       expect(mockTaskModel.find().sort).toHaveBeenCalledWith({ createdAt: -1 });
+      expect(result).toEqual(tasks);
+    });
+
+    it('should filter tasks by search term when provided', async () => {
+      // Arrange
+      const userId = 'user_id';
+      const searchTerm = 'test';
+      const tasks = [
+        { ...mockTask, _id: 'task1', title: 'Test Task' },
+      ];
+
+      const execMock = jest.fn().mockResolvedValue(tasks);
+      const sortMock = { exec: execMock };
+      
+      mockTaskModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue(sortMock),
+      });
+
+      // Act
+      const result = await service.getTasks(userId, searchTerm);
+
+      // Assert
+      expect(mockTaskModel.find).toHaveBeenCalledWith({
+        userId,
+        $or: [
+          { title: { $regex: searchTerm, $options: 'i' } },
+          { description: { $regex: searchTerm, $options: 'i' } },
+        ],
+      });
+      expect(result).toEqual(tasks);
+    });
+
+    it('should sort tasks by oldest first when specified', async () => {
+      // Arrange
+      const userId = 'user_id';
+      const tasks = [
+        { ...mockTask, _id: 'task1' },
+        { ...mockTask, _id: 'task2' },
+      ];
+
+      const execMock = jest.fn().mockResolvedValue(tasks);
+      const sortMock = { exec: execMock };
+      
+      mockTaskModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnValue(sortMock),
+      });
+
+      // Act
+      const result = await service.getTasks(userId, undefined, 'oldest');
+
+      // Assert
+      expect(mockTaskModel.find).toHaveBeenCalledWith({ userId });
+      expect(mockTaskModel.find().sort).toHaveBeenCalledWith({ createdAt: 1 });
       expect(result).toEqual(tasks);
     });
   });
@@ -205,123 +257,6 @@ describe('TaskService', () => {
 
       // Assert
       expect(mockTaskModel.deleteOne).toHaveBeenCalledWith({ _id: taskId, userId });
-    });
-  });
-
-  describe('getTasksByStatus', () => {
-    it('should return tasks grouped by status and sorted by updatedAt', async () => {
-      // Arrange
-      const userId = 'user_id';
-      const now = new Date();
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const twoDaysAgo = new Date(now);
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      const threeDaysAgo = new Date(now);
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-      
-      const tasks = [
-        { 
-          ...mockTask, 
-          _id: 'task1', 
-          status: TaskStatus.CREATED,
-          createdAt: threeDaysAgo,
-          updatedAt: yesterday // Updated recently
-        },
-        { 
-          ...mockTask, 
-          _id: 'task2', 
-          status: TaskStatus.INPROGRESS,
-          createdAt: twoDaysAgo,
-          updatedAt: now // Most recently updated
-        },
-        { 
-          ...mockTask, 
-          _id: 'task3', 
-          status: TaskStatus.COMPLETED,
-          createdAt: yesterday,
-          updatedAt: twoDaysAgo // Updated 2 days ago
-        },
-        { 
-          ...mockTask, 
-          _id: 'task4', 
-          status: TaskStatus.CREATED,
-          createdAt: now,
-          updatedAt: threeDaysAgo // Least recently updated
-        },
-      ];
-
-      mockTaskModel.find.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(tasks),
-      });
-
-      // Act
-      const result = await service.getTasksByStatus(userId);
-
-      // Assert
-      expect(mockTaskModel.find).toHaveBeenCalledWith({ userId });
-      
-      // Check that tasks are grouped correctly
-      expect(result.created.length).toBe(2);
-      expect(result.inprogress.length).toBe(1);
-      expect(result.completed.length).toBe(1);
-      
-      // Verify sorting by updatedAt (newest first) within each group
-      expect(result.created[0]._id).toBe('task1'); // task1 was updated more recently than task4
-      expect(result.created[1]._id).toBe('task4');
-      expect(result.inprogress[0]._id).toBe('task2');
-      expect(result.completed[0]._id).toBe('task3');
-    });
-
-    it('should filter tasks by search string when provided', async () => {
-      // Arrange
-      const userId = 'user_id';
-      const searchString = 'test';
-      const now = new Date();
-      
-      const tasks = [
-        { 
-          ...mockTask, 
-          _id: 'task1', 
-          title: 'Test Task',
-          status: TaskStatus.CREATED,
-          createdAt: now,
-          updatedAt: now
-        },
-        { 
-          ...mockTask, 
-          _id: 'task2', 
-          description: 'This is a test description',
-          status: TaskStatus.INPROGRESS,
-          createdAt: now,
-          updatedAt: now
-        },
-      ];
-
-      mockTaskModel.find.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(tasks),
-      });
-
-      // Act
-      const result = await service.getTasksByStatus(userId, searchString);
-
-      // Assert
-      expect(mockTaskModel.find).toHaveBeenCalledWith({
-        userId,
-        $or: [
-          { title: { $regex: searchString, $options: 'i' } },
-          { description: { $regex: searchString, $options: 'i' } },
-        ],
-      });
-      
-      // Check that tasks are grouped correctly
-      expect(result.created.length).toBe(1);
-      expect(result.inprogress.length).toBe(1);
-      expect(result.completed.length).toBe(0);
-      
-      // Verify the correct tasks are included
-      expect(result.created[0]._id).toBe('task1');
-      expect(result.inprogress[0]._id).toBe('task2');
     });
   });
 }); 

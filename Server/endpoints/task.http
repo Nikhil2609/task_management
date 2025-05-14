@@ -28,6 +28,7 @@ withCredentials: true
 PUT {{baseUrl}}/{{urlPath}}/<TASK_ID>
 Content-Type: application/json
 Accept: application/json
+withCredentials: true
 
 {
   "title": "Updated Task Title",
@@ -38,6 +39,7 @@ Accept: application/json
 PUT {{baseUrl}}/{{urlPath}}/<TASK_ID>/status
 Content-Type: application/json
 Accept: application/json
+withCredentials: true
 
 {
   "status": "INPROGRESS"
@@ -46,11 +48,14 @@ Accept: application/json
 ### Get All Tasks
 GET {{baseUrl}}/{{urlPath}}
 Accept: application/json
+withCredentials: true
 
 ### Delete Task
 DELETE {{baseUrl}}/{{urlPath}}/<TASK_ID>
 Accept: application/json
+withCredentials: true
 
-### Search Tasks
-GET {{baseUrl}}/{{urlPath}}/search?searchString=test
+### Search Tasks by Status
+GET {{baseUrl}}/{{urlPath}}/by-status?searchString=test
 Accept: application/json
+withCredentials: true

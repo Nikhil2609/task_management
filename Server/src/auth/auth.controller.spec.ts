@@ -11,7 +11,7 @@ describe('AuthController', () => {
   const mockAuthService = {
     signup: jest.fn(),
     login: jest.fn(),
-    googleAuth: jest.fn(),
+    handleGoogleAuth: jest.fn(),
     logout: jest.fn(),
   };
 
@@ -85,17 +85,24 @@ describe('AuthController', () => {
       // Act & Assert
       expect(() => controller.googleAuth()).not.toThrow();
     });
+  });
 
-    it('should call authService.googleAuth with request', async () => {
+  describe('googleLogin', () => {
+    it('should call authService.handleGoogleAuth with body and request', async () => {
       // Arrange
-      const expected = { status: 200, message: 'Google authentication successful', data: { id: 'user_id' } };
-      mockAuthService.googleAuth.mockResolvedValue(expected);
+      const mockBody = { accessToken: 'valid_token' };
+      const expected = { 
+        status: 200, 
+        message: 'Google login successful', 
+        data: { id: 'user_id', token: 'jwt_token' } 
+      };
+      mockAuthService.handleGoogleAuth.mockResolvedValue(expected);
 
       // Act
-      const result = await controller.googleAuthCallback(mockRequest as any);
+      const result = await controller.googleLogin(mockBody, mockRequest as any);
 
       // Assert
-      expect(authService.googleAuth).toHaveBeenCalledWith(mockRequest);
+      expect(authService.handleGoogleAuth).toHaveBeenCalledWith(mockBody, mockRequest);
       expect(result).toEqual(expected);
     });
   });

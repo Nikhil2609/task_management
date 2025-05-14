@@ -5,10 +5,18 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { TaskModule } from './task/task.module';
+import { ConfigModule } from './config/config.module';
+import { ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb+srv://smitpatel:RMrYOou8zzrOg26r@cluster0.p7hl5b4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'),
+    ConfigModule,
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get('database.uri'),
+      }),
+    }),
     UserModule,
     AuthModule,
     TaskModule,

@@ -1,23 +1,30 @@
+import * as dotenv from 'dotenv';
+// Load environment variables from .env file first
+dotenv.config();
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import cookieSession from 'cookie-session';
-import { configuration } from './config/configuration';
+import { configuration, validateEnvVariables } from './config/configuration';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import passport from 'passport';
 
 async function bootstrap() {
+  // Validate environment variables before starting the application
+  validateEnvVariables();
+  
   const app = await NestFactory.create(AppModule);
   const config = configuration();
 
   app.use(
     cookieSession({
-      name: "session",
-      keys: ["some randome key", "some randome key"],
-      maxAge: 24 * 7 * 3600000,
-      secure: false,
+      name: config.cookie.name,
+      keys: config.cookie.keys,
+      maxAge: config.cookie.maxAge,
+      secure: config.cookie.secure,
     }),
   );
 

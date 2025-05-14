@@ -2,8 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
 import { JwtService } from '@nestjs/jwt';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { ConfigService } from '@nestjs/config';
 
 jest.mock('bcryptjs');
 
@@ -11,6 +12,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let userService: UserService;
   let jwtService: JwtService;
+  let configService: ConfigService;
 
   const mockUserService = {
     findByEmail: jest.fn(),
@@ -22,24 +24,35 @@ describe('AuthService', () => {
     verify: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn(),
+  };
+
   const mockRequest = {
     session: {},
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    global.fetch = jest.fn();
     
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UserService, useValue: mockUserService },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     userService = module.get<UserService>(UserService);
     jwtService = module.get<JwtService>(JwtService);
+    configService = module.get<ConfigService>(ConfigService);
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
   it('should be defined', () => {
@@ -214,81 +227,122 @@ describe('AuthService', () => {
     });
   });
 
-  describe('googleAuth', () => {
-    it('should throw UnauthorizedException if no user in request', async () => {
+  describe('handleGoogleAuth', () => {
+    it('should throw InternalServerErrorException for invalid token', async () => {
       // Arrange
-      const req = { user: null };
+      const mockBody = { accessToken: 'invalid_token' };
+      const mockResponse = {
+        ok: false,
+        text: jest.fn().mockResolvedValue('Invalid token'),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
       // Act & Assert
-      await expect(service.googleAuth(req as any)).rejects.toThrow(UnauthorizedException);
+      await expect(service.handleGoogleAuth(mockBody, mockRequest as any)).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should create new user if not exists and set session', async () => {
       // Arrange
+      const mockBody = { accessToken: 'valid_token' };
       const googleUser = {
-        googleId: 'google_id',
+        sub: 'google_id',
         email: 'test@example.com',
-        firstname: 'Test',
-        lastname: 'User',
+        email_verified: true,
+        given_name: 'Test',
+        family_name: 'User',
       };
-      const req = { user: googleUser, session: {} };
-      const createdUser = { _id: 'user_id', ...googleUser };
+      
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue(googleUser),
+      };
+      
+      const createdUser = { 
+        _id: 'user_id', 
+        googleId: googleUser.sub,
+        email: googleUser.email,
+        firstname: googleUser.given_name,
+        lastname: googleUser.family_name
+      };
+      
       const token = 'jwt_token';
       
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
       mockUserService.findByEmail.mockResolvedValue(null);
       mockUserService.create.mockResolvedValue(createdUser);
       mockJwtService.sign.mockReturnValue(token);
 
       // Act
-      const result = await service.googleAuth(req as any);
+      const result = await service.handleGoogleAuth(mockBody, mockRequest as any);
 
       // Assert
+      expect(global.fetch).toHaveBeenCalledWith('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${mockBody.accessToken}`,
+        },
+      });
       expect(mockUserService.findByEmail).toHaveBeenCalledWith(googleUser.email);
-      expect(mockUserService.create).toHaveBeenCalledWith(googleUser);
+      expect(mockUserService.create).toHaveBeenCalledWith({
+        firstname: googleUser.given_name,
+        lastname: googleUser.family_name,
+        email: googleUser.email,
+        googleId: googleUser.sub,
+      });
       expect(mockJwtService.sign).toHaveBeenCalledWith({ id: createdUser._id });
-      expect(req.session).toEqual({ jwt: token });
+      expect(mockRequest.session).toEqual({ jwt: token });
       expect(result).toEqual({
         status: 200,
-        message: 'Google authentication successful',
-        data: { id: createdUser._id }
+        message: 'Google login successful',
+        data: { id: createdUser._id, token },
       });
     });
 
-    it('should update existing user with googleId if needed', async () => {
+    it('should login existing user and set session', async () => {
       // Arrange
+      const mockBody = { accessToken: 'valid_token' };
       const googleUser = {
-        googleId: 'google_id',
+        sub: 'google_id',
         email: 'test@example.com',
-        firstname: 'Test',
-        lastname: 'User',
+        email_verified: true,
+        given_name: 'Test',
+        family_name: 'User',
       };
-      const existingUser = {
-        _id: 'user_id',
+      
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue(googleUser),
+      };
+      
+      const existingUser = { 
+        _id: 'user_id', 
+        googleId: googleUser.sub,
         email: googleUser.email,
-        firstname: 'Existing',
-        lastname: 'User',
-        googleId: null,
-        save: jest.fn().mockResolvedValue({ _id: 'user_id', ...googleUser }),
+        firstname: googleUser.given_name,
+        lastname: googleUser.family_name
       };
-      const req = { user: googleUser, session: {} };
+      
       const token = 'jwt_token';
       
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
       mockUserService.findByEmail.mockResolvedValue(existingUser);
       mockJwtService.sign.mockReturnValue(token);
 
       // Act
-      const result = await service.googleAuth(req as any);
+      const result = await service.handleGoogleAuth(mockBody, mockRequest as any);
 
       // Assert
+      expect(global.fetch).toHaveBeenCalledWith('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${mockBody.accessToken}`,
+        },
+      });
       expect(mockUserService.findByEmail).toHaveBeenCalledWith(googleUser.email);
-      expect(existingUser.googleId).toBe(googleUser.googleId);
-      expect(existingUser.save).toHaveBeenCalled();
       expect(mockJwtService.sign).toHaveBeenCalledWith({ id: existingUser._id });
-      expect(req.session).toEqual({ jwt: token });
+      expect(mockRequest.session).toEqual({ jwt: token });
       expect(result).toEqual({
         status: 200,
-        message: 'Google authentication successful',
-        data: { id: existingUser._id }
+        message: 'Google login successful',
+        data: { id: existingUser._id, token },
       });
     });
   });

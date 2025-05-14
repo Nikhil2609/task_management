@@ -4,7 +4,6 @@ import { TaskService } from './task.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { EditTaskDto } from './dto/edit-task.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-import { SearchTasksDto } from './dto/search-tasks.dto';
 import { TaskStatus } from './task.schema';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,9 +27,8 @@ describe('TaskController', () => {
     createTask: jest.fn(),
     editTask: jest.fn(),
     updateStatus: jest.fn(),
-    getAllTasks: jest.fn(),
+    getTasks: jest.fn(),
     deleteTask: jest.fn(),
-    getTasksByStatus: jest.fn(),
   };
 
   const mockJwtService = {
@@ -161,8 +159,39 @@ describe('TaskController', () => {
     });
   });
 
-  describe('getAllTasks', () => {
-    it('should call taskService.getAllTasks with correct parameters', async () => {
+  describe('getTasks', () => {
+    it('should call taskService.getTasks with correct parameters', async () => {
+      // Arrange
+      const search = 'test';
+      const sort = 'latest';
+      
+      const tasks = [
+        {
+          _id: 'task_id_1',
+          title: 'Task 1',
+          description: 'Description 1',
+          status: TaskStatus.CREATED,
+          userId: mockUser.id,
+        },
+        {
+          _id: 'task_id_2',
+          title: 'Task 2',
+          description: 'Description 2',
+          status: TaskStatus.INPROGRESS,
+          userId: mockUser.id,
+        },
+      ];
+      mockTaskService.getTasks.mockResolvedValue(tasks);
+
+      // Act
+      const result = await controller.getTasks(mockRequest, search, sort);
+
+      // Assert
+      expect(taskService.getTasks).toHaveBeenCalledWith(mockUser.id, search, sort);
+      expect(result).toEqual(tasks);
+    });
+    
+    it('should call taskService.getTasks with default parameters when not provided', async () => {
       // Arrange
       const tasks = [
         {
@@ -180,13 +209,13 @@ describe('TaskController', () => {
           userId: mockUser.id,
         },
       ];
-      mockTaskService.getAllTasks.mockResolvedValue(tasks);
+      mockTaskService.getTasks.mockResolvedValue(tasks);
 
       // Act
-      const result = await controller.getAllTasks(mockRequest);
+      const result = await controller.getTasks(mockRequest);
 
       // Assert
-      expect(taskService.getAllTasks).toHaveBeenCalledWith(mockUser.id);
+      expect(taskService.getTasks).toHaveBeenCalledWith(mockUser.id, undefined, 'latest');
       expect(result).toEqual(tasks);
     });
   });
@@ -202,97 +231,6 @@ describe('TaskController', () => {
 
       // Assert
       expect(taskService.deleteTask).toHaveBeenCalledWith(taskId, mockUser.id);
-    });
-  });
-
-  describe('getTasksByStatus', () => {
-    it('should call taskService.getTasksByStatus with user ID when no search string is provided', async () => {
-      // Arrange
-      const searchTasksDto: SearchTasksDto = {
-        searchString: '',
-      };
-      
-      const groupedTasks = {
-        created: [
-          {
-            _id: 'task_id_1',
-            title: 'Created Task 1',
-            description: 'Task in created status',
-            status: TaskStatus.CREATED,
-            userId: mockUser.id,
-          },
-          {
-            _id: 'task_id_2',
-            title: 'Created Task 2',
-            description: 'Another task in created status',
-            status: TaskStatus.CREATED,
-            userId: mockUser.id,
-          },
-        ],
-        inprogress: [
-          {
-            _id: 'task_id_3',
-            title: 'In Progress Task',
-            description: 'Task in progress',
-            status: TaskStatus.INPROGRESS,
-            userId: mockUser.id,
-          },
-        ],
-        completed: [
-          {
-            _id: 'task_id_4',
-            title: 'Completed Task',
-            description: 'Task that is complete',
-            status: TaskStatus.COMPLETED,
-            userId: mockUser.id,
-          },
-        ],
-      };
-
-      mockTaskService.getTasksByStatus.mockResolvedValue(groupedTasks);
-
-      // Act
-      const result = await controller.getTasksByStatus(searchTasksDto, mockRequest);
-
-      // Assert
-      expect(taskService.getTasksByStatus).toHaveBeenCalledWith(mockUser.id, '');
-      expect(result).toEqual(groupedTasks);
-      expect(result.created.length).toBe(2);
-      expect(result.inprogress.length).toBe(1);
-      expect(result.completed.length).toBe(1);
-    });
-
-    it('should call taskService.getTasksByStatus with search string when provided', async () => {
-      // Arrange
-      const searchTasksDto: SearchTasksDto = {
-        searchString: 'test',
-      };
-      
-      const groupedTasks = {
-        created: [
-          {
-            _id: 'task_id_1',
-            title: 'Test Task',
-            description: 'Task in created status',
-            status: TaskStatus.CREATED,
-            userId: mockUser.id,
-          },
-        ],
-        inprogress: [],
-        completed: [],
-      };
-
-      mockTaskService.getTasksByStatus.mockResolvedValue(groupedTasks);
-
-      // Act
-      const result = await controller.getTasksByStatus(searchTasksDto, mockRequest);
-
-      // Assert
-      expect(taskService.getTasksByStatus).toHaveBeenCalledWith(mockUser.id, 'test');
-      expect(result).toEqual(groupedTasks);
-      expect(result.created.length).toBe(1);
-      expect(result.inprogress.length).toBe(0);
-      expect(result.completed.length).toBe(0);
     });
   });
 }); 

@@ -36,6 +36,7 @@
     "class-validator": "^0.14.2",
     "compression": "^1.8.0",
     "cookie-session": "^2.1.0",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "google-auth-library": "^9.15.1",
     "helmet": "^8.1.0",

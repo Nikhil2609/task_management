@@ -5,7 +5,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { EditTaskDto } from './dto/edit-task.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
-import { SearchTasksDto } from './dto/search-tasks.dto';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
