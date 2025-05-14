@@ -24,7 +24,9 @@ async function bootstrap() {
       name: config.cookie.name,
       keys: config.cookie.keys,
       maxAge: config.cookie.maxAge,
-      secure: config.cookie.secure,
+      secure: false,
+      httpOnly: true,
+      sameSite: "lax",
     }),
   );
 
